@@ -4,8 +4,8 @@
  * Project: INotify
  * Filename: INotifyListener.java
  * Disclaimer: (C) 2015 LUIS COLORADO SISTEMAS S.L.
- * 		All rights reserved.  This file must considered
- *		confidential.
+ *      All rights reserved.  This file must considered
+ *      confidential.
  */
 package es.lcssl.linux.inotify;
 
@@ -20,8 +20,8 @@ import java.io.File;
  * for a file change.
  */
 public interface INotifyListener {
-	
-	public void processEvent(File f, INotify.Event ev);
+    
+    public void processEvent(File f, INotify.Event ev);
 
 }
 
