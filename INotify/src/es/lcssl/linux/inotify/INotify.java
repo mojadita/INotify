@@ -44,6 +44,7 @@ public class INotify implements Runnable {
 	public static final int IN_ISDIR 			= 0x40000000;
 	public static final int IN_ONESHOT 			= 0x80000000;
 	private static final int HEADER_SIZE		= 16;
+	
 	static {
 		System.loadLibrary("INotify");
 	}
@@ -53,7 +54,8 @@ public class INotify implements Runnable {
 			new TreeMap<Integer, List<Subscription>>();
 	
 	/**
-	 * 
+	 * Subscription represents one subscription for a registered
+	 * {@link INotifyListener}.
 	 */
 	public class Subscription {
 		int				wd;
