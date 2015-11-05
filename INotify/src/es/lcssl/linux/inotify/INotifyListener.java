@@ -21,7 +21,7 @@ import java.io.File;
  */
 public interface INotifyListener {
     
-    public void processEvent(File f, INotify.Event ev);
+    public void processEvent(File f, int flags, String name);
 
 }
 

@@ -43,10 +43,10 @@ public class INotify implements Runnable {
     public static final int IN_MASK_ADD         = 0x20000000;
     public static final int IN_ISDIR            = 0x40000000;
     public static final int IN_ONESHOT          = 0x80000000;
-    private static final int HEADER_SIZE        = 16;
     
     static {
         System.loadLibrary("INotify");
+        init_class();
     }
     
     private int fd = -1;
@@ -70,7 +70,7 @@ public class INotify implements Runnable {
          */
         public Subscription(File file, INotifyListener listener, int mask) {
             this.file = file; this.listener = listener;
-            int wd = add_watch(fd, file.toString(), mask);
+            int wd = add_watch(file.toString(), mask);
             List<Subscription> l = map.get(file);
             if (l == null) {
                 map.put(wd, l = new ArrayList<Subscription>());
@@ -88,7 +88,7 @@ public class INotify implements Runnable {
                 throw new AlreadyCancelledException();
             if (l.size() == 0) {
                 map.remove(getWd());
-                rm_watch(fd, wd);
+                rm_watch(wd);
             }
         }
         
@@ -118,48 +118,18 @@ public class INotify implements Runnable {
         
     }
 
-    public class Event {
-        Subscription    subscription;
+    public  class Event {
+    	int				wd;
         int             flags;
         String          name;
-
-        /**
-         * @param sub
-         * @param fl
-         * @param nm
-         */
-        public Event(Subscription sub, int fl, String nm) {
-            subscription = sub; flags = fl; name = nm;
-        }
-        
-        /**
-         * <code>subscription</code> resource.
-         * @return the <code>Subscription</code> value of the resource.
-         */
-        public Subscription getSubscription() {
-            return subscription;
-        }
-        /**
-         * <code>flags</code> resource.
-         * @return the <code>int</code> value of the resource.
-         */
-        public int getFlags() {
-            return flags;
-        }
-        /**
-         * <code>name</code> resource.
-         * @return the <code>String</code> value of the resource.
-         */
-        public String getName() {
-            return name;
-        }
     }
     
-    private static native int init(int flags);
-    private static native int add_watch(int fd, String f, int flags);
-    private static native int rm_watch(int fd, int wd);
-    private static native int read(int fd, byte[] buffer, int offset);
-    private static native void close(int fd);
+    private static native void init_class();
+    private native int init(int flags);
+    private native int add_watch(String f, int flags);
+    private native int rm_watch(int wd);
+    private native Event getEvent();
+    private native void close();
     
     public INotify() {
         this(0);
@@ -175,7 +145,7 @@ public class INotify implements Runnable {
      */
     @Override
     protected void finalize() throws Throwable {
-        close(fd);
+        close();
         super.finalize();
     }
     
@@ -185,18 +155,25 @@ public class INotify implements Runnable {
     
     @Override
     public void run() {
-        byte[] buffer = new byte[8192];
-        int buffer_size = 0;
-        int n;
-        
-        while ((n = read(fd, buffer, buffer_size)) > 0) {
-            buffer_size += n; n = 0;
-            while (buffer_size - n >= HEADER_SIZE) {
-                
+    	Event event;
+
+    	while ((event = getEvent()) != null) {
+    		List<Subscription> l = map.get(event.wd);
+    		if (l == null) {
+    			rm_watch(event.wd);
+            } else {
+            	for (Subscription s: l) {
+            		s.getListener().processEvent(
+            				s.getFile(), 
+            				event.flags, 
+            				event.name);
+            	}
             }
-            
         }
         
+    }
+    public static void main(String[] args) {
+    	System.out.println("Arriba Cachipurriana");
     }
 }
 
