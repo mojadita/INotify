@@ -44,12 +44,18 @@ public class INotify implements Runnable {
     public static final int IN_ISDIR            = 0x40000000;
     public static final int IN_ONESHOT          = 0x80000000;
     
+    private static final int BUFFERSIZE			= 8192;
+        
     static {
         System.loadLibrary("INotify");
         init_class();
     }
     
+    /* internal data used in native functions */
     private int fd = -1;
+    private byte[] buffer = new byte[BUFFERSIZE];
+    private int p1 = 0, p2 = 0; 
+    
     protected Map<Integer, List<Subscription>> map = 
             new TreeMap<Integer, List<Subscription>>();
     
