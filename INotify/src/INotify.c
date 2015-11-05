@@ -76,16 +76,16 @@ JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
   (JNIEnv *env, jclass cl)
 {
 	TR(INotify_class = cl, jclass, "%#p");
-    TR(Event_class = (*env)->FindClass(env, "es/lcssl/linux/inotify/INotify/Event"), jclass, "%#p");
+    TR(Event_class = (*env)->FindClass(env, "es/lcssl/linux/inotify/INotify$Event"), jclass, "%#p");
 
 #define P(nam, sig) do { \
-        Event_##nam##_ID = (*env)->GetFieldID(env, Event_class, #nam, sig); \
+        TR(Event_##nam##_ID = (*env)->GetFieldID(env, Event_class, #nam, sig), jfieldID, "%#p"); \
         if (!Event_##nam##_ID) (*env)->FatalError(env, "Cannot access Event." #nam " ID\n"); \
     } while (0)
 
     P(wd, "I");
     P(flags, "I");
-    P(name, "Ljava/lang/String");
+    P(name, "Ljava/lang/String;");
 #undef P
 }
 
@@ -97,7 +97,8 @@ JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
 JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_init
   (JNIEnv *env, jobject obj, jint flags)
 {
-	jint fd = inotify_init1(flags);
+	jint fd;
+    TR(fd = inotify_init1(flags), jint, "%d");
 	(*env)->SetIntField(env, obj, INotify_fd_ID, fd);
 	return fd;
 }
