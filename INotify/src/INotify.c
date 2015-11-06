@@ -83,10 +83,26 @@ JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
         if (!Event_##nam##_ID) (*env)->FatalError(env, "Cannot access Event." #nam " ID\n"); \
     } while (0)
 
-    P(wd, "I");
-    P(flags, "I");
-    P(name, "Ljava/lang/String;");
+    P(wd,       "I");
+    P(flags,    "I");
+    P(name,     "Ljava/lang/String;");
 #undef P
+#define CHK(id) do { \
+        if (es_lcssl_linux_inotify_INotify_##id != id) \
+            (*env)->FatalError(env, #id " in C code differs from class INotify definition"); \
+    } while (0)
+    CHK(IN_ACCESS);             CHK(IN_MODIFY);
+    CHK(IN_ATTRIB);             CHK(IN_CLOSE_WRITE);
+    CHK(IN_CLOSE_NOWRITE);      CHK(IN_OPEN);
+    CHK(IN_MOVED_FROM);         CHK(IN_MOVED_TO);
+    CHK(IN_CREATE);             CHK(IN_DELETE);
+    CHK(IN_DELETE_SELF);        CHK(IN_MOVE_SELF);
+    CHK(IN_UNMOUNT);            CHK(IN_Q_OVERFLOW);
+    CHK(IN_IGNORED);            CHK(IN_CLOSE);
+    CHK(IN_MOVE);               CHK(IN_ONLYDIR);
+    CHK(IN_DONT_FOLLOW);        CHK(IN_EXCL_UNLINK);
+    CHK(IN_MASK_ADD);           CHK(IN_ISDIR);
+    CHK(IN_ONESHOT);            CHK(BUFFERSIZE);
 }
 
 /*
