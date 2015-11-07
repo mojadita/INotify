@@ -124,16 +124,17 @@ public class INotify implements Runnable {
         
     }
 
-    public  class Event {
+    public static class Event {
     	int				wd;
         int             flags;
+        int				cookie;
         String          name;
     }
     
     private static native void init_class();
-    private native int init(int flags);
+    private native void init(int flags);
     private native int add_watch(String f, int flags);
-    private native int rm_watch(int wd);
+    private native void rm_watch(int wd);
     private native Event getEvent();
     private native void close();
     
@@ -142,7 +143,7 @@ public class INotify implements Runnable {
     }
     
     public INotify(int flags) {
-        fd = init(flags);
+        init(flags);
     }
     
     /**
@@ -178,8 +179,18 @@ public class INotify implements Runnable {
         }
         
     }
+    
     public static void main(String[] args) {
-    	System.out.println("Arriba Cachipurriana");
+    	INotify mon = new INotify();
+    	INotifyListener lis = new INotifyListener() {
+			
+			@Override
+			public void processEvent(File f, int flags, String name) {
+				System.out.println("" + flags + f + (name != null ? ": " + name : ""));
+			}
+		};
+		mon.addListener(new File("/tmp"), lis, IN_CREATE | IN_DELETE | IN_CLOSE);
+		new Thread(mon).start();
     }
 }
 

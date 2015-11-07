@@ -24,6 +24,7 @@
 #include <linux/inotify.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -39,14 +40,19 @@
 #endif
 
 #if DEBUG
-#define D(X) __FILE__":%d:%s: " X, __LINE__, __func__
+#define D(X) __FILE__":%d: " X, __LINE__
 #define TR(s, typ, fmt) do { \
         typ _res = (s); \
         printf(D("%s ==> " fmt "\n"), #s, _res); \
     } while (0)
+#define TRZ(s) do { \
+        printf(D("%s;\n"), #s); \
+        s; \
+    } while (0)
 #else
 #define D(X) X
 #define TR(s, typ, fmt) (s)
+#define TRZ(s) do { s; } while (0)
 #endif
 
 /* constants */
@@ -59,11 +65,20 @@
 static char INOTIFY_C_RCSId[]="\n$Id: main.c.m4,v 1.7 2005/11/07 19:39:53 luis Exp $\n";
 
 static jclass   Event_class,
-				INotify_class;
+                INotify_class,
+                IOException_class;
 static jfieldID INotify_fd_ID,
-				Event_wd_ID,
+                INotify_buffer_ID,
+                INotify_p1_ID,
+                INotify_p2_ID,
+                Event_wd_ID,
                 Event_flags_ID,
+                Event_cookie_ID,
                 Event_name_ID;
+static jmethodID
+                Event_C_ID,
+                IOException_C_ID;
+static jobject  IOException_inst;
 
 /* functions */
 
@@ -75,22 +90,49 @@ static jfieldID INotify_fd_ID,
 JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
   (JNIEnv *env, jclass cl)
 {
-	TR(INotify_class = cl, jclass, "%#p");
+    TR(INotify_class = cl, jclass, "%#p");
     TR(Event_class = (*env)->FindClass(env, "es/lcssl/linux/inotify/INotify$Event"), jclass, "%#p");
+    TR(IOException_class = (*env)->FindClass(env, "java/io/IOException"), jclass, "%#p");
 
-#define P(nam, sig) do { \
-        TR(Event_##nam##_ID = (*env)->GetFieldID(env, Event_class, #nam, sig), jfieldID, "%#p"); \
-        if (!Event_##nam##_ID) (*env)->FatalError(env, "Cannot access Event." #nam " ID\n"); \
+    /* fields */
+#define F(cls, nam, sig) do { \
+        TR(cls##_##nam##_ID = (*env)->GetFieldID(env, cls##_class, #nam, sig), jfieldID, "%#p"); \
+        if (!cls##_##nam##_ID) TRZ((*env)->FatalError(env, "Cannot access field " #cls "." #nam " ID\n")); \
     } while (0)
+    F(Event, wd,       "I");
+    F(Event, flags,    "I");
+    F(Event, cookie,   "I");
+    F(Event, name,     "Ljava/lang/String;");
+    F(INotify, fd,     "I");
+    F(INotify, buffer, "[B");
+    F(INotify, p1,     "I");
+    F(INotify, p2,     "I");
+#undef F
 
-    P(wd,       "I");
-    P(flags,    "I");
-    P(name,     "Ljava/lang/String;");
-#undef P
+    /* constructors */
+#define C(cls, sig) do { \
+        TR(cls##_C_ID = (*env)->GetMethodID(env, cls##_class, "<init>", sig), jmethodID, "%#p"); \
+        TRZ(if (!cls##_C_ID) (*env)->FatalError(env, "Cannot access constructor " #cls "() ID\n")); \
+    } while (0)
+    C(IOException, "()V");
+    C(Event, "()V");
+#undef C
+
+#if DEBUG
 #define CHK(id) do { \
-        if (es_lcssl_linux_inotify_INotify_##id != id) \
-            (*env)->FatalError(env, #id " in C code differs from class INotify definition"); \
+        if ((int)es_lcssl_linux_inotify_INotify_##id != (int)id) { \
+            char buffer[256]; \
+            snprintf(buffer, sizeof buffer, \
+                D(#id "(%#x) in C native code differs " \
+                    "from class INotify definition(%#x)"), \
+                id, \
+                es_lcssl_linux_inotify_INotify_##id); \
+            (*env)->FatalError(env, buffer); \
+        } \
     } while (0)
+#else
+#define CHK(id)
+#endif
     CHK(IN_ACCESS);             CHK(IN_MODIFY);
     CHK(IN_ATTRIB);             CHK(IN_CLOSE_WRITE);
     CHK(IN_CLOSE_NOWRITE);      CHK(IN_OPEN);
@@ -102,7 +144,9 @@ JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
     CHK(IN_MOVE);               CHK(IN_ONLYDIR);
     CHK(IN_DONT_FOLLOW);        CHK(IN_EXCL_UNLINK);
     CHK(IN_MASK_ADD);           CHK(IN_ISDIR);
-    CHK(IN_ONESHOT);            CHK(BUFFERSIZE);
+    CHK(IN_ONESHOT);
+#undef CHK
+    TR(IOException_inst = (*env)->NewObject(env, IOException_class, IOException_C_ID), jobject, "%#p");
 }
 
 /*
@@ -110,13 +154,12 @@ JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init_1class
  * Method:    init
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_init
+JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_init
   (JNIEnv *env, jobject obj, jint flags)
 {
-	jint fd;
+    jint fd;
     TR(fd = inotify_init1(flags), jint, "%d");
-	(*env)->SetIntField(env, obj, INotify_fd_ID, fd);
-	return fd;
+    TRZ((*env)->SetIntField(env, obj, INotify_fd_ID, fd));
 }
 
 /*
@@ -127,12 +170,14 @@ JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_init
 JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_add_1watch
   (JNIEnv *env, jobject obj, jstring s, jint flags)
 {
-	const char *str = (*env)->GetStringUTFChars(env, s, NULL);
-	jint res = inotify_add_watch(
-            (*env)->GetIntField(env, obj, INotify_fd_ID),
-            str,
-            flags);
-    (*env)->ReleaseStringUTFChars(env, s, str);
+    const char *str;
+    jint res;
+    jint fd;
+    TR(str = (*env)->GetStringUTFChars(env, s, NULL), const char *, "%s");
+    TR(fd = (*env)->GetIntField(env, obj, INotify_fd_ID), jint, "%d");
+    TR(flags, jint, "%d");
+    TR(res = inotify_add_watch( fd, str, flags), jint, "%d");
+    TRZ((*env)->ReleaseStringUTFChars(env, s, str));
     return res;
 }
 
@@ -141,10 +186,10 @@ JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_add_1watch
  * Method:    rm_watch
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_rm_1watch
+JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_rm_1watch
   (JNIEnv *env, jobject obj, jint wd)
 {
-    inotify_rm_watch((*env)->GetIntField(env, obj, INotify_fd_ID), wd);
+    TR(inotify_rm_watch((*env)->GetIntField(env, obj, INotify_fd_ID), wd), int, "%d");
 }
 
 /*
@@ -153,7 +198,66 @@ JNIEXPORT jint JNICALL Java_es_lcssl_linux_inotify_INotify_rm_1watch
  * Signature: ()Les/lcssl/linux/inotify/INotify/Event;
  */
 JNIEXPORT jobject JNICALL Java_es_lcssl_linux_inotify_INotify_getEvent
-  (JNIEnv *env, jobject o);
+  (JNIEnv *env, jobject o)
+{
+    jobject res = NULL, ba;
+    jsize sz;
+    jint p1, p2, fd;
+    jbyte *buffer;
+    struct inotify_event *ptr;
+
+
+    TR(fd       = (*env)->GetIntField(          env, o, INotify_fd_ID),     jint,   "%d");
+    TR(ba       = (*env)->GetObjectField(       env, o, INotify_buffer_ID), jobject,"%#p");
+    TR(p1       = (*env)->GetIntField(          env, o, INotify_p1_ID),     jint,   "%d");
+    TR(p2       = (*env)->GetIntField(          env, o, INotify_p2_ID),     jint,   "%d");
+    TR(sz       = (*env)->GetArrayLength(       env, ba),                   jsize,  "%d");
+    TR(buffer   = (*env)->GetByteArrayElements( env, ba, NULL),             jbyte*, "%#p");
+
+    while (p2 < p1 + sizeof(struct inotify_event)) {
+        int l = p2 - p1;
+        if (p1 && l) {
+            memmove(buffer, buffer + p1, l);
+            p1 = 0; p2 = l;
+        }
+        l = read(fd, buffer + p2, sz - p2);
+        if (l < 0) {
+            TRZ((*env)->Throw(env, IOException_inst));
+            goto end;
+        }
+        if (l == 0) {
+            goto end;
+        }
+        /* l > 0 */
+        fprintbuf(stderr, l, buffer + p2, D("Read %d bytes:"), l);
+        p2 += l;
+    } /* while */
+
+    TR(ptr = (struct inotify_event *) (buffer + p1), struct inotify_event*, "%#p");
+    TR(p1 += sizeof (struct inotify_event) + ptr->len, jint, "%d");
+
+    TR(res = (*env)->NewObject(env, Event_class, Event_C_ID), jobject, "%#p");
+    if (res) {
+        jobject file = NULL;
+        TR(ptr->wd, jint, "%d");
+        TRZ((*env)->SetIntField(env, res, Event_wd_ID, ptr->wd));
+        TR(ptr->mask, jint, "%#x");
+        TRZ((*env)->SetIntField(env, res, Event_flags_ID, ptr->mask));
+        TR(ptr->cookie, jint, "%#x");
+        TRZ((*env)->SetIntField(env, res, Event_cookie_ID, ptr->cookie));
+        if (ptr->len) {
+            TR(file = (*env)->NewString(env, (jchar *)ptr->name, strlen(ptr->name)), jobject, "%#p");
+        }
+        TRZ((*env)->SetObjectField(env, res, Event_name_ID, file));
+    }
+    TRZ((*env)->SetIntField(env, o, INotify_p1_ID, p1));
+    TRZ((*env)->SetIntField(env, o, INotify_p2_ID, p2));
+
+end:
+    TRZ((*env)->ReleaseByteArrayElements(env, ba, buffer, 0));
+
+    return res;
+}
 
 /*
  * Class:     es_lcssl_linux_inotify_INotify
@@ -161,8 +265,11 @@ JNIEXPORT jobject JNICALL Java_es_lcssl_linux_inotify_INotify_getEvent
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_es_lcssl_linux_inotify_INotify_close
-  (JNIEnv *env, jobject o);
-
-
+  (JNIEnv *env, jobject o)
+{
+    jint fd;
+    TR(fd = (*env)->GetIntField(env, o, INotify_fd_ID), jint, "%d");
+    TRZ(close(fd));
+}
 
 /* $Id: main.c.m4,v 1.7 2005/11/07 19:39:53 luis Exp $ */

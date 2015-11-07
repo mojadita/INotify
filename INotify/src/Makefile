@@ -19,7 +19,7 @@ all: $(targets)
 clean:
 	$(RM) $(targets) $(foreach i, $(targets), $($(i)_objs))
 
-$(outdir)/libINotify.so_objs = INotify.o
+$(outdir)/libINotify.so_objs = INotify.o fprintbuf.o
 $(outdir)/libINotify.so_libs =
 $(outdir)/libINotify.so: $($(outdir)/libINotify.so_objs)
 	$(CC) $(LDFLAGS) -shared -o $@ $($@_objs) $($@_ldflags) $($@_libs)
@@ -28,3 +28,5 @@ INotify.o: es_lcssl_linux_inotify_INotify.h
 
 es_lcssl_linux_inotify_INotify.h: es/lcssl/linux/inotify/INotify.java
 	javah es.lcssl.linux.inotify.INotify
+
+fprintbuf.o: fprintbuf.h
