@@ -10,6 +10,7 @@
 package es.lcssl.linux.inotify;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -297,7 +298,7 @@ public class INotify<PrivateData> implements Runnable {
     private native void init(int flags);
     private native int add_watch(String f, int flags);
     private native void rm_watch(int wd);
-    private native boolean getEvent();
+    private native boolean getEvent() throws IOException;
     public native void close();
     
     /**
@@ -356,19 +357,25 @@ public class INotify<PrivateData> implements Runnable {
      */
     @Override
     public void run() {
-    	while (getEvent()) {
-    		List<Subscription> l = map.get(wd);
-    		if (l == null) {
-    			rm_watch(wd);
-            } else {
-            	for (Subscription s: l) {
-            		s.getListener().processEvent(
-            				s.getFile(), 
-            				mask, 
-            				name, 
-            				s.getPd());
-            	}
+        
+    	try {
+            while (getEvent()) {
+            	List<Subscription> l = map.get(wd);
+            	if (l == null) {
+            		rm_watch(wd);
+                } else {
+                	for (Subscription s: l) {
+                		s.getListener().processEvent(
+                				s.getFile(), 
+                				mask, 
+                				name, 
+                				s.getPd());
+                	}
+                }
             }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            System.err.println(e);
         }
     }
     
