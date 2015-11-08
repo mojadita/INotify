@@ -298,7 +298,7 @@ public class INotify<PrivateData> implements Runnable {
     private native int add_watch(String f, int flags);
     private native void rm_watch(int wd);
     private native boolean getEvent();
-    private native void close();
+    public native void close();
     
     /**
      * Default constructor.
@@ -402,6 +402,7 @@ public class INotify<PrivateData> implements Runnable {
 					i);
 		new Thread(mon).start();
     }
+    
 }
 
 /* $Id$ */
