@@ -372,36 +372,6 @@ public class INotify<PrivateData> implements Runnable {
         }
     }
     
-    /**
-     * Example application that lists the events with one 
-     * subscription per file indicated in the command
-     * line.
-     * @param args The names of the {@link File}s to be monitored.
-     */
-    public static void main(String[] args) {
-    	INotify<Integer> mon = new INotify<Integer>();
-    	INotifyListener<Integer> lis = 
-    			new INotifyListener<Integer>() {
-			
-			@Override
-			public void processEvent(
-					File f, 
-					int flags, 
-					String name, 
-					Integer dumb) {
-				System.out.println(String.format(
-						"%d:[%#x]: %s ==> %s", 
-						dumb, flags, f, name));
-			}
-		};
-		for (int i = 0; i < args.length; i++)
-			mon.addListener(
-					new File(args[i]), 
-					lis, 
-					IN_CREATE | IN_DELETE | IN_DELETE_SELF |IN_CLOSE, 
-					i);
-		new Thread(mon).start();
-    }
     
 }
 
