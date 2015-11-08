@@ -9,6 +9,8 @@
  */
 package es.lcssl.linux.inotify;
 
+import es.lcssl.linux.inotify.INotify.Subscription;
+
 /**
  * Exception generated on {@link Subscription#cancel()} for a 
  * {@link Subscription} that has been already
