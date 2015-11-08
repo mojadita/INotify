@@ -2,6 +2,9 @@ es_lcssl_linux_inotify_INotify_Event.h
 es_lcssl_linux_inotify_INotify.h
 es_lcssl_linux_inotify_INotify_Subscription.h
 *.o
+*.so
 /fprintbuf.c
 /fprintbuf.h
+/INotify.c
+/Makefile
 /es/
