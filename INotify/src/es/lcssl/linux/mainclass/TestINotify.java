@@ -45,15 +45,7 @@ public class TestINotify {
                 },
                 INotify.IN_CREATE | INotify.IN_DELETE | INotify.IN_CLOSE_WRITE,
                 null);
-        new Thread(monitor).start();
-        try {
-            Thread.sleep(6000);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        monitor.close();
-        System.out.println("Arriba Cachipurriana.... y se acabó");
+        monitor.run();
     }
     /*
      * TODO: fill this as appropiate.
